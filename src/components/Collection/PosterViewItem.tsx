@@ -47,7 +47,7 @@ const PosterViewItem = ({ isSeries = false, item }: Props) => {
     <Link to={viewRouteLink()}>
       <div
         className="group flex shrink-0 flex-col content-center gap-y-3"
-        style={{ width: '12.922em' }}
+        style={{ width: '12.8em' }}
       >
         <BackgroundImagePlaceholderDiv
           image={mainPoster}

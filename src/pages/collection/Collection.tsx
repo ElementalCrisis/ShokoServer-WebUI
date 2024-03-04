@@ -217,7 +217,7 @@ function Collection() {
           className={cx(
             'flex items-start',
             (!isSeries && showFilterSidebar)
-              ? 'w-[28.84rem] opacity-100 overflow-auto'
+              ? 'w-[28.4rem] opacity-100 overflow-auto'
               : 'w-0 opacity-0 overflow-hidden',
           )}
         >

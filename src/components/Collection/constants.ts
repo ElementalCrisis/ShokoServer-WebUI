@@ -1,7 +1,7 @@
 export const posterItemSize = {
-  width: 209,
+  width: 205,
   height: 363,
-  gap: 16,
+  gap: 24,
 };
 
 export const listItemSize = {

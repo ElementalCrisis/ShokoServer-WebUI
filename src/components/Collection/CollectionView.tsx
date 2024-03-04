@@ -1,8 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { mdiLoading } from '@mdi/js';
 import { Icon } from '@mdi/react';
 import cx from 'classnames';
-import { debounce } from 'lodash';
 
 import ListViewItem from '@/components/Collection/ListViewItem';
 import PosterViewItem from '@/components/Collection/PosterViewItem';
@@ -38,19 +37,68 @@ const CollectionView = (props: Props) => {
   } = props;
 
   const [itemWidth, itemHeight] = useMemo(() => {
-    if (mode === 'poster') return [posterItemSize.width, posterItemSize.height, posterItemSize.gap];
+    if (mode === 'poster') return [posterItemSize.width, posterItemSize.height];
     return [
       (isSeries || isSidebarOpen) ? listItemSize.widthAlt : listItemSize.width,
       listItemSize.height,
     ];
   }, [isSidebarOpen, mode, isSeries]);
 
-  const fetchNextPageDebounced = useMemo(
-    () =>
-      debounce(() => {
-        fetchNextPage().catch(() => {});
-      }, 50),
-    [fetchNextPage],
+  const observer = useRef<IntersectionObserver>();
+  const lastItemRef = useCallback(
+    (node: HTMLDivElement) => {
+      if (isFetchingNextPage) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          fetchNextPage().catch(() => {});
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [fetchNextPage, isFetchingNextPage],
+  );
+
+  const renderItem = useCallback(
+    (item: CollectionGroupType | SeriesType, index: number) => {
+      const isLastItem = index === items.length - 1;
+      const baseStyle = { width: `${itemWidth}px`, height: `${itemHeight}px` };
+
+      const key = `group-${item?.IDs.ID || index}`;
+
+      const renderContent = () => {
+        if (!item) {
+          return <Icon path={mdiLoading} spin size={1} />;
+        }
+        if (mode === 'poster') {
+          return <PosterViewItem item={item} isSeries={isSeries} />;
+        }
+        const groupExtra = !isSeries ? groupExtras.find(extra => extra.ID === item.IDs.ID) : undefined;
+        return (
+          <ListViewItem
+            item={item}
+            groupExtras={groupExtra}
+            isSeries={isSeries}
+            isSidebarOpen={isSidebarOpen}
+          />
+        );
+      };
+
+      if (isLastItem) {
+        return (
+          <div ref={lastItemRef} style={baseStyle} key={key}>
+            {renderContent()}
+          </div>
+        );
+      }
+
+      return (
+        <div style={baseStyle} key={key}>
+          {renderContent()}
+        </div>
+      );
+    },
+    [items, mode, itemWidth, itemHeight, isSeries, groupExtras, isSidebarOpen, lastItemRef],
   );
 
   if (total === 0) {
@@ -70,50 +118,14 @@ const CollectionView = (props: Props) => {
     );
   }
 
-  const renderItem = (item: CollectionGroupType | SeriesType, index: number) => {
-    const isPlaceholder = index > total - 1;
-    const baseStyle = { width: `${itemWidth / 16}rem` };
-
-    if (isPlaceholder) {
-      return <div style={baseStyle} />;
-    }
-
-    if (!item) {
-      if (!isFetchingNextPage) fetchNextPageDebounced();
-      return (
-        <div
-          className="flex shrink-0 items-center justify-center rounded-lg border border-panel-border text-panel-text-primary"
-          style={{ ...baseStyle, height: `${itemHeight / 16}rem` }}
-        >
-          <Icon path={mdiLoading} spin size={3} />
-        </div>
-      );
-    }
-
-    const key = `group-${item.IDs.ID}`;
-    return mode === 'poster' ? <PosterViewItem item={item} key={key} isSeries={isSeries} /> : (
-      <ListViewItem
-        item={item}
-        groupExtras={!isSeries ? groupExtras.find(extra => extra.ID === item.IDs.ID) : undefined}
-        key={key}
-        isSeries={isSeries}
-        isSidebarOpen={isSidebarOpen}
-      />
-    );
-  };
-
   return (
     <div
       className={cx(
-        'flex grow rounded-lg',
-        mode === 'poster' ? 'px-6 py-6 w-min bg-panel-background border-panel-border border' : 'w-min',
+        'flex flex-wrap gap-x-6 gap-y-6 grow rounded-lg',
+        mode === 'poster' ? 'px-6 py-6 bg-panel-background border-panel-border border w-min' : '',
       )}
     >
-      <div className="relative w-full">
-        <div className="flex flex-wrap gap-x-6 gap-y-4">
-          {items.map(renderItem)}
-        </div>
-      </div>
+      {items.map(renderItem)}
     </div>
   );
 };
